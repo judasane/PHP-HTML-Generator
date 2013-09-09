@@ -5,9 +5,16 @@
  * @author Juan
  */
 abstract class HtmlElement {
-    
-    protected $html="";
+
+    protected $html = "";
     protected $tagName;
+
+    /**
+     *
+     * @var array Contains the order list of inner elements
+     */
+    protected $childList = array();
+
     /**
      * Attributes to be used in this element
      * @var array
@@ -215,28 +222,35 @@ abstract class HtmlElement {
             "no"
         )
     );
-    
+
     /**
      * Creates a new element, initializing the $admittedAttributes array
      */
-    public function __construct() {
+    public function __construct($attributes="") {
+        $this->setLocalAttributes();
         $this->admittedAttributes = array_merge(
                 $this->globalAttributes, $this->localAttributes
         );
+        if(!empty($attributes)){
+            $this->setAttributes($attributes);
+        }
     }
+    
+    protected abstract function setLocalAttributes();
+
 
     /**
      * Sets attributes to the element
      * @param array $attributes Associative array of valid attributes=>values
      */
     public function setAttributes($attributes) {
-        $return=$this->checkAttributes($attributes);
-        if($return){
-            $this->currentAttributes=array_merge($attributes, $this->currentAttributes);
+        $return = $this->checkAttributes($attributes);
+        if ($return) {
+            $this->currentAttributes = array_merge($attributes, $this->currentAttributes);
         }
         return $return;
     }
-    
+
     /**
      * Checks if the given attributes are valid
      * @param array $attributes Associative array of attributes=>values
@@ -246,7 +260,7 @@ abstract class HtmlElement {
         $valid = false;
         $cadenaPruebas = "";
         foreach ($attributes as $attribute => $value) {
-            $valid=false;
+            $valid = false;
             //First checks if the attribute name is admitted 
             if (array_key_exists($attribute, $this->admittedAttributes)) {
                 //Checks if the value is admitted
@@ -256,7 +270,7 @@ abstract class HtmlElement {
                     //If exists, checks if the given value is in the array
                     if (in_array($value, $admittedValues)) {
                         $valid = true;
-                    }else{
+                    } else {
                         return $valid;
                     }
                 } else { //if there is not an array of admitted values, checks if the given value is valid
@@ -265,36 +279,44 @@ abstract class HtmlElement {
                         $valid = true;
                     } elseif ($admittedValues == "") {//It's up to the user the validity of the value
                         $valid = true;
-                    }else{
+                    } else {
                         return $valid;
                     }
                 }
-            }else{
+            } else {
                 return $valid;
             }
         }
         return $valid;
     }
 
-    public abstract function setAttribute();
-
+   
     /**
      * Converts the element into valid HTML code
      * @return String The string with the valid HTML code ready to use
      */
     public function getHtml() {
-        $element=$this->tagName;
+        $element = $this->tagName;
         $this->html.="<$element";
-        foreach ($this->currentAttributes as $attribute=>$value){
+        foreach ($this->currentAttributes as $attribute => $value) {
             $this->html.=" $attribute=\"$value\"";
         }
-        $this->html.="></$element>";
+        $this->html.=">";
+        if(count($this->childList)>0){
+            foreach ($this->childList as $value){
+                $this->html.=$value->getHTML();
+            }
+        }
+        $this->html.="</$element>";
         return $this->html;
     }
 
-    public function prueba($attribute) {
-
-        return array_key_exists($attribute, $this->admittedAttributes);
+    /**
+     * Appends an element inside the current element
+     * @param HtmlElement $element The html element to be appended
+     */
+    public function appendChild(HtmlElement $element) {
+        $this->childList[] = $element;
     }
 
 }
