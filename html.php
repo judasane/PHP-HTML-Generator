@@ -5,15 +5,26 @@ require_once './constants.php';
 /**
  * Html generator class
  * @author Juan_David_Sanchez_Neme
- * @link http://judasane.github.io My professional website
  */
 class Html {
-    
+
+    /**
+     * Array containing the warnings generated within the element
+     * @var array
+     */
+    public $warnings = array();
+
+    /**
+     * The text content for the element
+     * @var string
+     */
+    protected $text = "";
+
     /**
      * Does the element can have content?
      * @var boolean
      */
-    protected $isEmptyElement;
+    protected $isEmptyElement = null;
 
     /**
      * The generated html code
@@ -25,7 +36,7 @@ class Html {
      * Element type
      * @var string
      */
-    protected $tagName;
+    protected $tagName = "";
 
     /**
      * Contains the order list of inner elements
@@ -62,12 +73,9 @@ class Html {
      * @param array $attributes Associative array of valid attributes=>values
      */
     public function setAttributes($attributes) {
-
-        $return = $this->checkAttributes($attributes);
-        if ($return) {
-            $this->currentAttributes = array_merge($attributes, $this->currentAttributes);
-        }
-        return $return;
+        $warnings = $this->checkAttributes($attributes);
+        $this->warnings = array_merge($this->warnings, $warnings);
+        $this->currentAttributes = array_merge($attributes, $this->currentAttributes);
     }
 
     /**
@@ -77,7 +85,7 @@ class Html {
      */
     private function checkAttributes($attributes) {
         $valid = false;
-        $cadenaPruebas = "";
+        $warnings = array();
         foreach ($attributes as $attribute => $value) {
             $valid = false;
             //First checks if the attribute name is admitted 
@@ -90,43 +98,37 @@ class Html {
                     if (in_array($value, $admittedValues)) {
                         $valid = true;
                     } else {
-                        return $valid;
+                        $warnings[] = array(
+                            "Type" => "Not admitted value",
+                            "Element"=>$this->tagName,
+                            "Attribute" => $attribute,
+                            "Value" => $value);
                     }
                 } else { //if there is not an array of admitted values, checks if the given value is valid
-                    //Checks if the given value matches with te valid value
+                    //Checks if the given value matches with the valid values
                     if ($admittedValues == $value) {
                         $valid = true;
                     } elseif ($admittedValues == "") {//It's up to the user the validity of the value
                         $valid = true;
                     } else {
-                        return $valid;
+                        $warnings[] = array(
+                            "Type" => "Not admitted value",
+                            "Element"=>$this->tagName,
+                            "Attribute" => $attribute,
+                            "Value" => $value);
                     }
                 }
             } else {
-                return $valid;
+                $warnings[] = array(
+                    "Type" => "Not admitted attribute",
+                    "Element"=>$this->tagName,
+                    "Attribute" => $attribute,
+                    "Value" => $value);
             }
         }
-        return $valid;
-    }
-
-    /**
-     * Converts the element into valid HTML code
-     * @return String The string with the valid HTML code ready to use
-     */
-    public function getHtml() {
-        $element = $this->tagName;
-        $this->html.="<$element";
-        foreach ($this->currentAttributes as $attribute => $value) {
-            $this->html.=" $attribute=\"$value\"";
+        if (!empty($warnings)) {
+            return $warnings;
         }
-        $this->html.=">";
-        if (count($this->childList) > 0) {
-            foreach ($this->childList as $value) {
-                $this->html.=$value->getHTML();
-            }
-        }
-        $this->html.="</$element>";
-        return $this->html;
     }
 
     /**
@@ -143,7 +145,6 @@ class Html {
     }
 
     public function setClass($classes) {
-
         $classContent = "";
         if (is_array($classes)) {
             foreach ($classes as $value) {
@@ -157,6 +158,56 @@ class Html {
             $classContent = $classes;
         }
         $this->currentAttributes["class"] = $classContent;
+    }
+
+    public function setText($text) {
+        if (!$this->isEmptyElement) {
+            $this->childList[] = $text;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Converts the element into valid HTML code
+     * @paramn boolean Do you want to show warnings? (as html comments)
+     * @return String The string with the valid HTML code ready to use
+     */
+    public function toString($showWarnings = false) {
+        $element = $this->tagName;
+        $this->html.="<$element";
+        foreach ($this->currentAttributes as $attribute => $value) {
+            $this->html.=" $attribute=\"$value\"";
+        }
+        if (!$this->isEmptyElement) {
+            $this->html.=">";
+            if (count($this->childList) > 0) {
+                foreach ($this->childList as $value) {
+                    if (!is_string($value)) {
+                        $this->html.=$value->toString();
+                        $this->warnings=  array_merge($this->warnings,$value->warnings);
+                    } else {
+                        $this->html.=$value;
+                    }
+                }
+            }
+            $this->html.="</$element>";
+        } else {
+            $this->html.="/>";
+        }
+        if ($showWarnings) {
+            $this->html.="\n<!--Warnings found: ". count($this->warnings) ."-->\n";
+            $i = 1;
+            foreach ($this->warnings as $subArray) {
+                $Type=$subArray["Type"];
+                $Element=$subArray["Element"];
+                $Attribute=$subArray["Attribute"];
+                $value=$subArray["Value"];
+                $this->html.="<!--$i: Element:$Element Warning Type:$Type, Attribute: $Attribute, Value: $value-->\n";
+                $i++;
+            }
+        }
+        return $this->html;
     }
 
 }
