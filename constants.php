@@ -136,7 +136,7 @@ class Constants {
             if (in_array($elementType, self::$admittedElements)) {
                 return array_merge(self::$globalAttributes, self::$$elementType);
             } else {
-                return false;
+                return array();
             }
         } else {
             return self::$globalAttributes;
